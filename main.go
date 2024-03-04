@@ -2,19 +2,13 @@ package main
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"io"
 	"log"
 	"os"
 	"os/signal"
 
+	"github.com/jonjohnsonjr/retrace/retrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
-	tracesdk "go.opentelemetry.io/otel/sdk/trace"
-
-	"github.com/jonjohnsonjr/leto"
 )
 
 func main() {
@@ -36,35 +30,5 @@ func run(ctx context.Context) error {
 	}
 	defer exp.Shutdown(ctx)
 
-	dec := json.NewDecoder(os.Stdin)
-
-	spans := make([]tracesdk.ReadOnlySpan, 0, 100)
-
-	var span leto.SpanStub
-	for {
-		if err := dec.Decode(&span); err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return fmt.Errorf("decoding span: %w", err)
-		}
-
-		spans = append(spans, span.Snapshot())
-
-		if len(spans) == 100 {
-			// Flush every 100 spans.
-			if err := exp.ExportSpans(ctx, spans); err != nil {
-				return fmt.Errorf("exporting spans: %w", err)
-			}
-
-			// Reuse the underlying storage to avoid allocs.
-			spans = spans[:0]
-		}
-	}
-
-	if err := exp.ExportSpans(ctx, spans); err != nil {
-		return fmt.Errorf("exporting spans: %w", err)
-	}
-
-	return nil
+	return retrace.Retrace(ctx, exp, os.Stdin)
 }
