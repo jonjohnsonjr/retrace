@@ -4,7 +4,16 @@ This is a bit experimental because I'm not sure how I want to structure things t
 
 I think this should "just work" if you're on GCP with ambient credentials that have the `Cloud Trace Agent` role.
 
-If you want to test this locally, though...
+If you want to test this locally, though, you need to make sure your ADC has project_id set for some reason:
+
+```console
+# This is janky and there is probably a better way to do this, but the exporter breaks if we don't.
+# If you don't have `sponge` or `jq`, this is just adding setting "project_id": "$PROJECT_ID" as a top-level field of your application default credentials file.
+ADC="$HOME/.config/gcloud/application_default_credentials.json"
+jq --arg project "${PROJECT_ID}" '.project_id = $project' ${ADC} | sponge ${ADC}
+```
+
+And you might want to set up a service account for it.
 
 ```console
 PROJECT_ID=$(gcloud config get project)
@@ -34,7 +43,7 @@ gcloud auth application-default login \
     --project "${PROJECT_ID}" \
     --impersonate-service-account "retracer@${PROJECT_ID}.iam.gserviceaccount.com"
 
-# This is janky and there is probably a better way to do this, but the exproter breaks if we don't.
+# This is janky and there is probably a better way to do this, but the exporter breaks if we don't.
 # If you don't have `sponge` or `jq`, this is just adding setting "project_id": "$PROJECT_ID" as a top-level field of your application default credentials file.
 ADC="$HOME/.config/gcloud/application_default_credentials.json"
 jq --arg project "${PROJECT_ID}" '.project_id = $project' ${ADC} | sponge ${ADC}
